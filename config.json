@@ -1,7 +1,7 @@
 {
   "server_config": {
     "model_path": "weights/",
-    "download_directory": "data/"
+    "download_directory": "generated/"
   },
   "train_dataset_params": {
     "root_path": "datasets/",
