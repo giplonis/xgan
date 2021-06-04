@@ -141,3 +141,5 @@ wandb/
 sweeps/
 weights/.DS_Store
 *.zip
+generated/
+datasets/
