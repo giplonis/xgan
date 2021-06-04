@@ -15,7 +15,8 @@
     },
     "save_weights": true,
     "num_backups": 8,
-    "save_path": "weights_trained/"
+    "save_path": "weights_trained/",
+    "log_dir": "tensorboard/"
   },
   "model_hparams": {
     "dropout_rate_eshared": 0.5,

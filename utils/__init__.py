@@ -98,6 +98,7 @@ def configure_model(config_file, use_wandb):
         save_weights=config_file["train_dataset_params"]["save_weights"],
         num_backups=config_file["train_dataset_params"]["num_backups"],
         save_path=config_file["train_dataset_params"]["save_path"],
+        log_dir=config_file["train_dataset_params"]["log_dir"],
 
         dropout_rate_eshared=config_file["model_hparams"]["dropout_rate_eshared"],
         dropout_rate_cdann=config_file["model_hparams"]["dropout_rate_cdann"],

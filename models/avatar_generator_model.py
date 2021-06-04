@@ -1,13 +1,4 @@
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torchvision.transforms as transforms
-import torchvision
-from torch.autograd import Variable
-from PIL import Image
-from keras_segmentation.pretrained import pspnet_101_voc12
-import cv2
-import numpy as np
+from torch.utils.tensorboard import SummaryWriter
 
 from .encoder import *
 from .decoder import *
@@ -19,7 +10,6 @@ from losses import *
 
 import wandb
 import os
-import sys
 from tqdm import tqdm
 from itertools import cycle
 
@@ -36,6 +26,7 @@ class Avatar_Generator_Model():
     def __init__(self, config, use_wandb=True):
         self.use_wandb = use_wandb
         self.config = config
+        self.writer = SummaryWriter(self.config.log_dir)
         self.device = torch.device("cuda:" + (os.getenv('N_CUDA')if os.getenv('N_CUDA') else "0") if self.config.use_gpu and torch.cuda.is_available() else "cpu")
 
         self.segmentation = pspnet_101_voc12()
@@ -254,7 +245,7 @@ class Avatar_Generator_Model():
 
         return loss_dann
 
-    def train_step(self, train_loader_faces, train_loader_cartoons, optimizers, criterion_bc, criterion_l1, criterion_l2):
+    def train_step(self, epoch, train_loader_faces, train_loader_cartoons, optimizers, criterion_bc, criterion_l1, criterion_l2):
 
         optimizerDenoiser, optimizerDisc1, optimizerTotal, crit_opt = optimizers
 
@@ -267,6 +258,8 @@ class Avatar_Generator_Model():
         self.c_dann.train()
         self.discriminator1.train()
         self.denoiser.train()
+
+        total_faces = len(train_loader_faces)
 
         for faces_batch, cartoons_batch in zip(cycle(train_loader_faces), train_loader_cartoons):
 
@@ -384,6 +377,19 @@ class Avatar_Generator_Model():
 
             optimizerDenoiser.step()
 
+            self.writer.add_scalar('Train/Loss rec1', loss_rec1, epoch * total_faces)
+            self.writer.add_scalar('Train/Loss rec2', loss_rec2, epoch * total_faces)
+            self.writer.add_scalar('Train/Loss dann', loss_dann, epoch * total_faces)
+            self.writer.add_scalar('Train/Loss sem1', loss_sem1, epoch * total_faces)
+            self.writer.add_scalar('Train/Loss sem2', loss_sem2, epoch * total_faces)
+            self.writer.add_scalar('Train/Loss discriminator', loss_disc1, epoch * total_faces)
+            self.writer.add_scalar('Train/Loss generator', loss_gen1, epoch * total_faces)
+            self.writer.add_scalar('Train/Loss total', loss_total, epoch * total_faces)
+            self.writer.add_scalar('Train/Loss denoiser', loss_denoiser, epoch * total_faces)
+            self.writer.add_scalar('Train/Loss teach', loss_teach, epoch * total_faces)
+            self.writer.add_scalar('Train/Loss disc real cartoons', loss_disc1_real_cartoons, epoch * total_faces)
+            self.writer.add_scalar('Train/Loss disc fake cartoons', loss_disc1_fake_cartoons, epoch * total_faces)
+
         return loss_rec1, loss_rec2, loss_dann, loss_sem1, loss_sem2, loss_disc1, loss_gen1, loss_total, loss_denoiser, loss_teach, loss_disc1_real_cartoons, loss_disc1_fake_cartoons
 
     def train(self):
@@ -419,20 +425,22 @@ class Avatar_Generator_Model():
         images_faces_to_test = get_test_images(self.segmentation, self.config.batch_size, self.config.root_path + self.config.dataset_path_test_faces, self.config.root_path + self.config.dataset_path_segmented_faces)
 
         for epoch in tqdm(range(self.config.num_epochs)):
-            loss_rec1, loss_rec2, loss_dann, loss_sem1, loss_sem2, loss_disc1, loss_gen1, loss_total, loss_denoiser, loss_teach, loss_disc1_real_cartoons, loss_disc1_fake_cartoons = self.train_step(train_loader_faces, train_loader_cartoons, optimizers, criterion_bc, criterion_l1, criterion_l2)
+            loss_rec1, loss_rec2, loss_dann, loss_sem1, loss_sem2, loss_disc1, loss_gen1, loss_total, loss_denoiser, loss_teach, loss_disc1_real_cartoons, loss_disc1_fake_cartoons = self.train_step(epoch, train_loader_faces, train_loader_cartoons, optimizers, criterion_bc, criterion_l1, criterion_l2)
 
-            metrics_log = {"train_epoch": epoch+1,
-                        "loss_rec1": loss_rec1.item(),
-                        "loss_rec2": loss_rec2.item(),
-                        "loss_dann": loss_dann.item(),
-                        "loss_semantic12": loss_sem1.item(),
-                        "loss_semantic21": loss_sem2.item(),
-                        "loss_disc1_real_cartoons": loss_disc1_real_cartoons.item(),
-                        "loss_disc1_fake_cartoons": loss_disc1_fake_cartoons.item(),
-                        "loss_disc1": loss_disc1.item(),
-                        "loss_gen1": loss_gen1.item(),
-                        "loss_teach": loss_teach.item(),
-                        "loss_total": loss_total.item()}
+            metrics_log = {
+                "train_epoch": epoch + 1,
+                "loss_rec1": loss_rec1.item(),
+                "loss_rec2": loss_rec2.item(),
+                "loss_dann": loss_dann.item(),
+                "loss_semantic12": loss_sem1.item(),
+                "loss_semantic21": loss_sem2.item(),
+                "loss_disc1_real_cartoons": loss_disc1_real_cartoons.item(),
+                "loss_disc1_fake_cartoons": loss_disc1_fake_cartoons.item(),
+                "loss_disc1": loss_disc1.item(),
+                "loss_gen1": loss_gen1.item(),
+                "loss_teach": loss_teach.item(),
+                "loss_total": loss_total.item()
+            }
 
             if self.config.save_weights and ((epoch+1) % int(self.config.num_epochs/self.config.num_backups)) == 0:
                 path_save_epoch = path_save_weights + 'epoch_{}'.format(epoch+1)
@@ -443,6 +451,9 @@ class Avatar_Generator_Model():
                 save_weights(model, path_save_epoch, self.use_wandb)
                 loss_test = self.get_loss_test_set(test_loader_faces, test_loader_cartoons, criterion_bc, criterion_l1, criterion_l2)
                 generated_images = test_image(model, self.device, images_faces_to_test)
+
+                self.writer.add_scalar('Test/Total loss', loss_test, epoch)
+                self.writer.flush()
 
                 metrics_log["loss_total_test"] = loss_test
                 metrics_log["Generated images"] = [wandb.Image(img) for img in generated_images]
@@ -475,6 +486,9 @@ class Avatar_Generator_Model():
                                                             1, self.config.num_epochs, loss_total.item()))
             print('Epoch [{}/{}], Loss denoiser: {:.4f}'.format(epoch +
                                                                 1, self.config.num_epochs, loss_denoiser.item()))
+
+        self.writer.flush()
+        self.writer.close()
 
         if self.use_wandb:
             wandb.finish()
