@@ -1,3 +1,5 @@
+from PIL.Image import Image
+from keras_segmentation.pretrained import pspnet_101_voc12
 from torch.utils.tensorboard import SummaryWriter
 
 from .encoder import *
