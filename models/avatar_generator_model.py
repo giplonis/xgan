@@ -429,9 +429,9 @@ class Avatar_Generator_Model():
 
         if self.config.save_weights:
             if self.use_wandb:
-                path_save_weights = self.config.root_path + wandb.run.id + "_" + self.config.save_path
+                path_save_weights = wandb.run.id + "_" + self.config.save_path
             else:
-                path_save_weights = self.config.root_path + self.config.save_path
+                path_save_weights = self.config.save_path
             try:
                 os.mkdir(path_save_weights)
             except OSError:
