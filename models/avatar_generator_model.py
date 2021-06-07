@@ -1,4 +1,4 @@
-from PIL.Image import Image
+from PIL import Image
 from keras_segmentation.models.all_models import model_from_name
 from tensorflow import keras
 from torch.utils.tensorboard import SummaryWriter

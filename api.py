@@ -4,6 +4,7 @@ from flask import Flask, request, jsonify, send_from_directory, abort
 from flask_cors import CORS
 
 from models import Avatar_Generator_Model
+from PIL import Image
 from utils import *
 
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
