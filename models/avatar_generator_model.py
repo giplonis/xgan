@@ -470,8 +470,8 @@ class Avatar_Generator_Model():
                 "loss_total": loss_total.item()
             }
 
-            if self.config.save_weights and ((epoch+1) % int(self.config.num_epochs/self.config.num_backups)) == 0:
-                path_save_epoch = path_save_weights + 'epoch_{}'.format(epoch+1)
+            if self.config.save_weights:
+                path_save_epoch = path_save_weights + f'epoch_{epoch + 1}'
                 try:
                     os.mkdir(path_save_epoch)
                 except OSError:
