@@ -2,6 +2,7 @@ from PIL import Image
 from keras_segmentation.models.all_models import model_from_name
 from tensorflow import keras
 from torch.utils.tensorboard import SummaryWriter
+from torchvision.transforms import InterpolationMode
 
 from .encoder import *
 from .decoder import *
@@ -160,6 +161,8 @@ class Avatar_Generator_Model():
 
         transform_list_faces = get_transforms_config_face()
         transform = transforms.Compose(transform_list_faces)
+        face_width = face.width
+        face_height = face.height
         face = transform(face).float()
         X = face.unsqueeze(0).to(self.device)
 
@@ -172,6 +175,9 @@ class Avatar_Generator_Model():
 
         output = denorm(output)
         output = output[0]
+
+        transform = transforms.Resize(size=(face_height, face_width), interpolation=InterpolationMode.BICUBIC)
+        output = transform.forward(output)
 
         torchvision.utils.save_image(tensor=output, fp=output_path)
 
