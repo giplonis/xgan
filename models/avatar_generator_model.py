@@ -1,5 +1,6 @@
 from PIL.Image import Image
-from keras_segmentation.pretrained import pspnet_101_voc12
+from keras_segmentation.models.all_models import model_from_name
+from tensorflow import keras
 from torch.utils.tensorboard import SummaryWriter
 
 from .encoder import *
@@ -14,6 +15,31 @@ import wandb
 import os
 from tqdm import tqdm
 from itertools import cycle
+
+
+def model_from_checkpoint_path(model_config, latest_weights):
+
+    model = model_from_name[model_config['model_class']](
+        model_config['n_classes'], input_height=model_config['input_height'],
+        input_width=model_config['input_width'])
+    model.load_weights(latest_weights)
+    return model
+
+
+def pspnet_101_voc12():
+
+    model_config = {
+        "input_height": 473,
+        "input_width": 473,
+        "n_classes": 21,
+        "model_class": "pspnet_101",
+    }
+
+    model_url = "https://www.dropbox.com/s/" \
+                "uvqj2cjo4b9c5wg/pspnet101_voc2012.h5?dl=1"
+    latest_weights = keras.utils.get_file("pspnet101_voc2012.h5", model_url)
+
+    return model_from_checkpoint_path(model_config, latest_weights)
 
 
 class Avatar_Generator_Model():
